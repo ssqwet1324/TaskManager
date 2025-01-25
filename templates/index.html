@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager</title>
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #121212; /* Dark background */
+            color: #e0e0e0; /* Light text color */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: #1e1e1e; /* Slightly lighter dark background */
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #b84e6f; /* Bordo color */
+        }
+        form {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        input, textarea, button {
+            font-size: 16px;
+        }
+        input, textarea {
+            padding: 12px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background: #2a2a2a; /* Input background */
+            color: #e0e0e0; /* Input text color */
+            transition: border-color 0.3s;
+        }
+        input:focus, textarea:focus {
+            border-color: #b84e6f; /* Bordo color */
+            outline: none;
+        }
+        button {
+            padding: 12px;
+            background-color: #b84e6f; /* Bordo color */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #9f3e56; /* Darker bordo color */
+        }
+        .task {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #2a2a2a; /* Task background */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+        .task h3 {
+            margin: 0;
+            color: #e0e0e0;
+        }
+        .task small {
+            color: #aaaaaa;
+        }
+        .task-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .task-buttons button {
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+        .task-buttons button.edit {
+            background: #b84e6f; /* Bordo color */
+        }
+        .task-buttons button.delete {
+            background: #f44336;
+        }
+        .task-buttons button:hover {
+            opacity: 0.8;
+        }
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6);
+            width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .modal-content h2 {
+            margin: 0;
+            color: #b84e6f; /* Bordo color */
+        }
+        .modal-content button {
+            width: 100%;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Task Manager</h1>
+    <form id="taskForm">
+        <input type="text" id="title" placeholder="Task Title" required>
+        <textarea id="description" placeholder="Task Description" required></textarea>
+        <input type="date" id="deadline" required>
+        <button type="submit">Add Task</button>
+    </form>
+    <div id="tasks"></div>
+</div>
+
+<div class="modal" id="editModal">
+    <div class="modal-content">
+        <h2>Edit Task</h2>
+        <input type="text" id="editTitle" placeholder="Task Title" required>
+        <textarea id="editDescription" placeholder="Task Description" required></textarea>
+        <input type="date" id="editDeadline" required>
+        <button id="saveEdit">Save Changes</button>
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('taskForm');
+    const tasksContainer = document.getElementById('tasks');
+    const editModal = document.getElementById('editModal');
+    const editTitle = document.getElementById('editTitle');
+    const editDescription = document.getElementById('editDescription');
+    const editDeadline = document.getElementById('editDeadline');
+    const saveEditButton = document.getElementById('saveEdit');
+
+    let currentEditTaskId = null;
+
+    // Function to generate a UUID
+    function generateUuid() {
+        return crypto.randomUUID(); // Generates a UUID (v4)
+    }
+
+    // Load tasks from the server
+    async function loadTasks() {
+        try {
+            const response = await fetch('/api/v1/tasks', { method: 'GET' });
+            if (response.ok) {
+                const tasks = await response.json();
+                renderTasks(tasks);
+            } else {
+                console.error('Failed to load tasks');
+            }
+        } catch (error) {
+            console.error('Error loading tasks:', error);
+        }
+    }
+
+    // Add a new task
+    async function addTask(task) {
+        try {
+            task.id = generateUuid();
+            const response = await fetch('/api/v1/tasks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(task),
+            });
+
+            if (response.ok) {
+                const newTask = await response.json();
+                renderTasks([newTask], true);
+            } else {
+                console.error('Failed to add task');
+            }
+        } catch (error) {
+            console.error('Error adding task:', error);
+        }
+    }
+
+    // Edit an existing task
+    async function editTask(task) {
+        try {
+            const response = await fetch('/api/v1/tasks', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(task),
+            });
+
+            if (response.ok) {
+                await response.json();
+                loadTasks(); // Reload tasks to reflect changes
+            } else {
+                console.error('Failed to edit task');
+            }
+        } catch (error) {
+            console.error('Error editing task:', error);
+        }
+    }
+
+    // Delete a task
+    async function deleteTask(taskId) {
+        try {
+            const response = await fetch(`/api/v1/tasks?id=${taskId}`, { method: 'DELETE' });
+            if (response.ok) {
+                const taskElement = document.getElementById(`task-${taskId}`);
+                if (taskElement) {
+                    tasksContainer.removeChild(taskElement);
+                }
+            } else {
+                console.error('Failed to delete task');
+            }
+        } catch (error) {
+            console.error('Error deleting task:', error);
+        }
+    }
+
+    // Render tasks in the DOM
+    function renderTasks(tasks, append = false) {
+        if (!append) tasksContainer.innerHTML = '';
+
+        tasks.forEach(task => {
+            const taskElement = document.createElement('div');
+            taskElement.classList.add('task');
+            taskElement.id = `task-${task.id}`;
+            taskElement.innerHTML = `
+                <div>
+                    <h3>${task.name}</h3>
+                    <p>${task.description}</p>
+                    <small>Deadline: ${task.deadline}</small>
+                </div>
+                <div class="task-buttons">
+                    <button class="edit" onclick="openEditModal('${task.id}', '${task.name}', '${task.description}', '${task.deadline}')">Edit</button>
+                    <button class="delete" onclick="deleteTask('${task.id}')">Delete</button>
+                </div>
+            `;
+            tasksContainer.appendChild(taskElement);
+        });
+    }
+
+    // Open the edit modal
+    function openEditModal(id, name, description, deadline) {
+        currentEditTaskId = id;
+        editTitle.value = name;
+        editDescription.value = description;
+        editDeadline.value = deadline;
+        editModal.classList.add('active');
+    }
+
+    // Close the edit modal
+    function closeEditModal() {
+        editModal.classList.remove('active');
+        currentEditTaskId = null;
+    }
+
+    // Event listener for adding a task
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const task = {
+            name: document.getElementById('title').value,
+            description: document.getElementById('description').value,
+            deadline: document.getElementById('deadline').value,
+        };
+        addTask(task);
+        form.reset();
+    });
+
+    // Event listener for saving edited task
+    saveEditButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        const task = {
+            id: currentEditTaskId,
+            name: editTitle.value,
+            description: editDescription.value,
+            deadline: editDeadline.value,
+        };
+        editTask(task);
+        closeEditModal();
+    });
+
+    // Load tasks when the page loads
+    loadTasks();
+</script>
+
+</body>
+</html>
