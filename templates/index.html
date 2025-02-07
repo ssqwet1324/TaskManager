@@ -5,98 +5,113 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Manager</title>
     <style>
+        /* Общие стили */
         body {
             font-family: 'Roboto', sans-serif;
             margin: 0;
             padding: 0;
-            background: #121212; /* Dark background */
-            color: #e0e0e0; /* Light text color */
+            background: #121212; /* Темный фон */
+            color: #e0e0e0; /* Светлый текст */
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             box-sizing: border-box;
         }
+
         .container {
             width: 100%;
             max-width: 600px;
-            background: #1e1e1e; /* Slightly lighter dark background */
+            background: #1e1e1e; /* Темный фон контейнера */
             border-radius: 12px;
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
             padding: 20px;
         }
+
         h1 {
             text-align: center;
-            color: #b84e6f; /* Bordo color */
+            color: #b84e6f; /* Бордовый цвет */
         }
+
+        /* Форма добавления задачи */
         form {
             margin-bottom: 20px;
             display: flex;
             flex-direction: column;
             gap: 15px;
         }
+
         input, textarea, button {
             font-size: 16px;
-        }
-        input, textarea {
             padding: 12px;
             border: 2px solid #333;
             border-radius: 8px;
-            background: #2a2a2a; /* Input background */
-            color: #e0e0e0; /* Input text color */
+            background: #2a2a2a; /* Темный фон полей ввода */
+            color: #e0e0e0; /* Светлый текст */
             transition: border-color 0.3s;
         }
+
         input:focus, textarea:focus {
-            border-color: #b84e6f; /* Bordo color */
+            border-color: #b84e6f; /* Бордовый цвет при фокусе */
             outline: none;
         }
+
         button {
-            padding: 12px;
-            background-color: #b84e6f; /* Bordo color */
+            background-color: #b84e6f; /* Бордовый цвет кнопки */
             color: white;
             border: none;
-            border-radius: 8px;
             cursor: pointer;
             transition: background-color 0.3s;
         }
+
         button:hover {
-            background-color: #9f3e56; /* Darker bordo color */
+            background-color: #9f3e56; /* Темный бордовый при наведении */
         }
+
+        /* Список задач */
         .task {
             margin-bottom: 15px;
             padding: 15px;
             border-radius: 8px;
-            background-color: #2a2a2a; /* Task background */
+            background-color: #2a2a2a; /* Темный фон задачи */
             display: flex;
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
         }
+
         .task h3 {
             margin: 0;
             color: #e0e0e0;
         }
+
         .task small {
             color: #aaaaaa;
         }
+
         .task-buttons {
             display: flex;
             gap: 10px;
         }
+
         .task-buttons button {
             padding: 8px 12px;
             border-radius: 8px;
         }
+
         .task-buttons button.edit {
-            background: #b84e6f; /* Bordo color */
+            background: #b84e6f; /* Бордовый цвет кнопки редактирования */
         }
+
         .task-buttons button.delete {
-            background: #f44336;
+            background: #f44336; /* Красный цвет кнопки удаления */
         }
+
         .task-buttons button:hover {
             opacity: 0.8;
         }
-        /* Modal */
+
+        /* Модальное окно редактирования */
         .modal {
             position: fixed;
             top: 0;
@@ -108,9 +123,11 @@
             justify-content: center;
             align-items: center;
         }
+
         .modal.active {
             display: flex;
         }
+
         .modal-content {
             background: #1e1e1e;
             padding: 20px;
@@ -121,10 +138,12 @@
             flex-direction: column;
             gap: 15px;
         }
+
         .modal-content h2 {
             margin: 0;
-            color: #b84e6f; /* Bordo color */
+            color: #b84e6f; /* Бордовый цвет заголовка */
         }
+
         .modal-content button {
             width: 100%;
             border-radius: 8px;
@@ -134,21 +153,24 @@
 <body>
 <div class="container">
     <h1>Task Manager</h1>
+    <!-- Форма добавления задачи -->
     <form id="taskForm">
         <input type="text" id="title" placeholder="Task Title" required>
         <textarea id="description" placeholder="Task Description" required></textarea>
-        <input type="date" id="deadline" required>
+        <input type="date" id="deadline">
         <button type="submit">Add Task</button>
     </form>
+    <!-- Список задач -->
     <div id="tasks"></div>
 </div>
 
+<!-- Модальное окно редактирования -->
 <div class="modal" id="editModal">
     <div class="modal-content">
         <h2>Edit Task</h2>
         <input type="text" id="editTitle" placeholder="Task Title" required>
         <textarea id="editDescription" placeholder="Task Description" required></textarea>
-        <input type="date" id="editDeadline" required>
+        <input type="date" id="editDeadline">
         <button id="saveEdit">Save Changes</button>
     </div>
 </div>
@@ -164,12 +186,29 @@
 
     let currentEditTaskId = null;
 
-    // Function to generate a UUID
+    // Генерация UUID
     function generateUuid() {
-        return crypto.randomUUID(); // Generates a UUID (v4)
+        return crypto.randomUUID();
     }
 
-    // Load tasks from the server
+    // Проверка корректности даты
+    function isValidDate(dateString) {
+        const regex = /^\d{4}-\d{2}-\d{2}$/; // Формат YYYY-MM-DD
+        if (!regex.test(dateString)) return false;
+
+        const date = new Date(dateString);
+        return !isNaN(date.getTime()); // Проверяем, что дата корректна
+    }
+
+    // Форматирование даты в DD-MM-YYYY
+    function formatDate(dateString) {
+        if (!dateString) return 'No deadline';
+
+        const [year, month, day] = dateString.split('-');
+        return `${day}-${month}-${year}`;
+    }
+
+    // Загрузка задач с сервера
     async function loadTasks() {
         try {
             const response = await fetch('/api/v1/tasks', { method: 'GET' });
@@ -184,7 +223,7 @@
         }
     }
 
-    // Add a new task
+    // Добавление новой задачи
     async function addTask(task) {
         try {
             task.id = generateUuid();
@@ -207,7 +246,7 @@
         }
     }
 
-    // Edit an existing task
+    // Редактирование задачи
     async function editTask(task) {
         try {
             const response = await fetch('/api/v1/tasks', {
@@ -220,7 +259,7 @@
 
             if (response.ok) {
                 await response.json();
-                loadTasks(); // Reload tasks to reflect changes
+                loadTasks(); // Перезагрузка задач
             } else {
                 console.error('Failed to edit task');
             }
@@ -229,7 +268,7 @@
         }
     }
 
-    // Delete a task
+    // Удаление задачи
     async function deleteTask(taskId) {
         try {
             const response = await fetch(`/api/v1/tasks?id=${taskId}`, { method: 'DELETE' });
@@ -246,7 +285,7 @@
         }
     }
 
-    // Render tasks in the DOM
+    // Отображение задач
     function renderTasks(tasks, append = false) {
         if (!append) tasksContainer.innerHTML = '';
 
@@ -258,7 +297,7 @@
                 <div>
                     <h3>${task.name}</h3>
                     <p>${task.description}</p>
-                    <small>Deadline: ${task.deadline}</small>
+                    <small>${task.deadline ? `Deadline: ${formatDate(task.deadline)}` : 'No deadline'}</small>
                 </div>
                 <div class="task-buttons">
                     <button class="edit" onclick="openEditModal('${task.id}', '${task.name}', '${task.description}', '${task.deadline}')">Edit</button>
@@ -269,49 +308,72 @@
         });
     }
 
-    // Open the edit modal
+    // Открытие модального окна редактирования
     function openEditModal(id, name, description, deadline) {
         currentEditTaskId = id;
         editTitle.value = name;
         editDescription.value = description;
-        editDeadline.value = deadline;
+        editDeadline.value = deadline || '';
         editModal.classList.add('active');
     }
 
-    // Close the edit modal
+    // Закрытие модального окна
     function closeEditModal() {
         editModal.classList.remove('active');
         currentEditTaskId = null;
     }
 
-    // Event listener for adding a task
+    // Обработчик формы добавления задачи
     form.addEventListener('submit', (event) => {
         event.preventDefault();
+
+        const title = document.getElementById('title').value;
+        const description = document.getElementById('description').value;
+        const deadline = document.getElementById('deadline').value;
+
+        // Проверяем корректность даты
+        if (deadline && !isValidDate(deadline)) {
+            alert('Некорректная дата. Используйте формат YYYY-MM-DD.');
+            return;
+        }
+
         const task = {
-            name: document.getElementById('title').value,
-            description: document.getElementById('description').value,
-            deadline: document.getElementById('deadline').value,
+            name: title,
+            description: description,
+            deadline: deadline || null, // Пустой deadline заменяется на null
         };
+
         addTask(task);
         form.reset();
     });
 
-    // Event listener for saving edited task
+    // Обработчик сохранения изменений
     saveEditButton.addEventListener('click', (event) => {
         event.preventDefault();
+
+        const title = editTitle.value;
+        const description = editDescription.value;
+        const deadline = editDeadline.value;
+
+        // Проверяем корректность даты
+        if (deadline && !isValidDate(deadline)) {
+            alert('Некорректная дата. Используйте формат YYYY-MM-DD.');
+            return;
+        }
+
         const task = {
             id: currentEditTaskId,
-            name: editTitle.value,
-            description: editDescription.value,
-            deadline: editDeadline.value,
+            name: title,
+            description: description,
+            deadline: deadline || null, // Пустой deadline заменяется на null
         };
+
         editTask(task);
         closeEditModal();
     });
 
-    // Load tasks when the page loads
+    // Загрузка задач при загрузке страницы
     loadTasks();
 </script>
-
 </body>
 </html>

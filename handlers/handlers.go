@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"taskmanager/models"
-	"taskmanager/repository" // Импортируем пакет с хранилищем
+	"taskmanager/repository" // хранилище
 )
 
 // TaskHandler — структура для обработки запросов, связанных с задачами.
@@ -44,7 +44,7 @@ func (h *TaskHandler) AddTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.storage.AddTasks(req); err != nil {
+	if err := h.storage.AddTask(req); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
